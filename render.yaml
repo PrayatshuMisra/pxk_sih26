@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: pxk-healthcare-prototype
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: OAUTH_SERVER_URL
+        value: https://oauth.example.com
+      - key: DATABASE_URL
+        value: sqlite:///data/db.sqlite3
