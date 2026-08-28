@@ -4,6 +4,7 @@ import type { ScreeningRecordRow } from "../drizzle/schema";
 export type SaveScreeningInput = { userId: number; publicId: string; status: "draft" | "completed" | "discarded"; scenarioId: "respiratory" | "digestive" | "dental" | "general"; language: "en" | "kn" | "tulu" | "kok"; concernText?: string; answersJson: string; currentStep: number; consentVersion: string; nlpSummary?: string; nlpMatchedTermsJson?: string };
 
 const store: ScreeningRecordRow[] = [];
+export const screeningStore = store;
 let nextId = 1;
 
 export async function saveScreeningRecord(input: SaveScreeningInput) { 

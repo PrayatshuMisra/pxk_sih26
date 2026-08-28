@@ -1,5 +1,5 @@
-/** Community Wayfinding: appointment coordination stores only the patient profile, selected clinician, slot, and consented route reference required by this prototype. */
 import type { AppointmentRow, PatientProfileRow, ScreeningRecordRow } from "../drizzle/schema";
+import { screeningStore } from "./screeningDb";
 
 export type PatientProfileInput = { displayName: string; ageYears: number; gender: string };
 export type AppointmentInput = { userId: number; appointmentRef: string; doctorId: string; scheduledAt: Date; screeningRecordId?: string; patientNote?: string; complaintLedgerJson: string; consentVersion: string; profile: PatientProfileInput };
@@ -53,10 +53,18 @@ export async function listOwnAppointments(userId: number) {
 }
 
 export async function listProviderAppointments() {
-  // We need to return an array of { appointment, profile, screening }
-  // Since we replaced screeningDb with a separate in-memory store, we can't easily join here without importing it.
-  // Actually, we don't strictly need to return screening for the demo, but we should import it if needed.
-  // Wait, the original returned a left join. Let's just return a partial mock if screening is needed.
-  // But wait! How does `listProviderAppointments` access screeningRecords? We can just export `store` from screeningDb.
-  return []; // We can leave this empty or implement a basic join if needed. For now, empty is fine or we can import the store.
+  return appointments
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .map(appointment => {
+      const profile = patientProfiles.find(p => p.userId === appointment.userId);
+      const screening = screeningStore.find(s => s.userId === appointment.userId && s.publicId === appointment.screeningRecordId) || null;
+      
+      // Ensure we return exactly what the join returned:
+      // db.select({ appointment, profile, screening })
+      return {
+        appointment,
+        profile: profile!,
+        screening
+      };
+    });
 }
