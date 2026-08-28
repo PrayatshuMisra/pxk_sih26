@@ -1,9 +1,53 @@
 /** Community Wayfinding: user-owned screening drafts are scoped to the authenticated account and can be resumed or discarded. */
-import { and, desc, eq } from "drizzle-orm";
-import { screeningRecords } from "../drizzle/schema";
-import { getDb } from "./db";
+import type { ScreeningRecordRow } from "../drizzle/schema";
 
 export type SaveScreeningInput = { userId: number; publicId: string; status: "draft" | "completed" | "discarded"; scenarioId: "respiratory" | "digestive" | "dental" | "general"; language: "en" | "kn" | "tulu" | "kok"; concernText?: string; answersJson: string; currentStep: number; consentVersion: string; nlpSummary?: string; nlpMatchedTermsJson?: string };
-export async function saveScreeningRecord(input: SaveScreeningInput) { const db = await getDb(); if (!db) throw new Error("Database is unavailable"); const values = { ...input, consentedAt: new Date() }; await db.insert(screeningRecords).values(values).onDuplicateKeyUpdate({ set: { status: input.status, scenarioId: input.scenarioId, language: input.language, concernText: input.concernText ?? null, answersJson: input.answersJson, currentStep: input.currentStep, nlpSummary: input.nlpSummary ?? null, nlpMatchedTermsJson: input.nlpMatchedTermsJson ?? null, updatedAt: new Date() } }); const [record] = await db.select().from(screeningRecords).where(and(eq(screeningRecords.userId, input.userId), eq(screeningRecords.publicId, input.publicId))).limit(1); return record; }
-export async function listScreeningRecords(userId: number) { const db = await getDb(); if (!db) throw new Error("Database is unavailable"); return db.select().from(screeningRecords).where(and(eq(screeningRecords.userId, userId), eq(screeningRecords.status, "draft"))).orderBy(desc(screeningRecords.updatedAt)); }
-export async function discardScreeningRecord(userId: number, publicId: string) { const db = await getDb(); if (!db) throw new Error("Database is unavailable"); await db.update(screeningRecords).set({ status: "discarded", updatedAt: new Date() }).where(and(eq(screeningRecords.userId, userId), eq(screeningRecords.publicId, publicId))); return { success: true as const }; }
+
+const store: ScreeningRecordRow[] = [];
+let nextId = 1;
+
+export async function saveScreeningRecord(input: SaveScreeningInput) { 
+  let record = store.find(r => r.userId === input.userId && r.publicId === input.publicId);
+  if (record) {
+    record.status = input.status;
+    record.scenarioId = input.scenarioId;
+    record.language = input.language;
+    record.concernText = input.concernText ?? null;
+    record.answersJson = input.answersJson;
+    record.currentStep = input.currentStep;
+    record.nlpSummary = input.nlpSummary ?? null;
+    record.nlpMatchedTermsJson = input.nlpMatchedTermsJson ?? null;
+    record.updatedAt = new Date();
+  } else {
+    record = {
+      id: nextId++,
+      userId: input.userId,
+      publicId: input.publicId,
+      status: input.status,
+      scenarioId: input.scenarioId,
+      language: input.language,
+      concernText: input.concernText ?? null,
+      answersJson: input.answersJson,
+      currentStep: input.currentStep,
+      consentVersion: input.consentVersion,
+      consentedAt: new Date(),
+      nlpSummary: input.nlpSummary ?? null,
+      nlpMatchedTermsJson: input.nlpMatchedTermsJson ?? null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    store.push(record);
+  }
+  return record; 
+}
+export async function listScreeningRecords(userId: number) { 
+  return store.filter(r => r.userId === userId && r.status === "draft").sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()); 
+}
+export async function discardScreeningRecord(userId: number, publicId: string) { 
+  const record = store.find(r => r.userId === userId && r.publicId === publicId);
+  if (record) {
+    record.status = "discarded";
+    record.updatedAt = new Date();
+  }
+  return { success: true as const }; 
+}
