@@ -20,6 +20,21 @@ export async function createContext(
     user = null;
   }
 
+  // --- ADD MOCK USER FOR PROTOTYPE ---
+  if (!user) {
+    user = {
+      id: 1,
+      openId: "mock-user-123",
+      name: "Mock Provider",
+      email: "mock@example.com",
+      loginMethod: "demo",
+      role: "admin",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      lastSignedIn: new Date()
+    };
+  }
+
   return {
     req: opts.req,
     res: opts.res,
